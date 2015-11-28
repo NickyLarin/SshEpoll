@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     struct Settings *settings = getSettings(argv[1]);
 
     // Создаём сокет, порт из настроек
-    int socketfd = getSocket(settings->port);
+    createSocket(settings->port);
 
     // Освобождаем ресурсы
     free(settings);

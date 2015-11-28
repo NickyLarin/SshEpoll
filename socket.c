@@ -9,6 +9,7 @@
 #include <netdb.h>
 #include <unistd.h>
 
+static int socketfd;
 
 // Получение доступных адресов
 struct addrinfo *getAvailableAddresses(char *port) {
@@ -31,13 +32,12 @@ struct addrinfo *getAvailableAddresses(char *port) {
 }
 
 //  Получаем дескриптор сокета привязанный к адресу
-int getSocket(int port) {
+int createSocket(int port) {
     char portString[4];
     sprintf(portString, "%d", port);
     struct addrinfo *addresses = getAvailableAddresses(portString);
 
     int yes = 1;
-    int socketfd = 0;
 
     // Перебор списка подходящих адрессов
     for (struct addrinfo *address = addresses; address != NULL; address = address->ai_next) {
@@ -63,7 +63,12 @@ int getSocket(int port) {
             perror("Error: starting to listen socket");
             continue;
         }
-        return socketfd;
+        return 0;
     }
     return -1;
+}
+
+// Получаем дескриптор сокета
+int getSocketFd() {
+    return socketfd;
 }

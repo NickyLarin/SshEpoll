@@ -4,5 +4,6 @@
 
 #ifndef SSHEPOLL_SOCKET_H
 #define SSHEPOLL_SOCKET_H
-int getSocket(int port);
+int createSocket(int port);
+int getSocketFd();
 #endif //SSHEPOLL_SOCKET_H
