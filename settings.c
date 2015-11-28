@@ -21,8 +21,21 @@ int readSettingsFromFile(char *path) {
 
     int length = 0;
     int size = BEGIN_STRINGS_SIZE;
-    char **strings = (char *)malloc(size * sizeof(char *));
-
+    char **strings = (char **)malloc(size * sizeof(char *));
+    memset(strings, 0, size * sizeof(char *));
+    char *string;
+    while (fReadString(file, &string) > 0) {
+        if (length == size) {
+            size += BEGIN_STRINGS_SIZE;
+            char **tmp = (char **)realloc(strings, size * sizeof(char *));
+            if (tmp == NULL) {
+                fprintf(stderr, "Error: reallocating memory in readSettingsFromFile\n");
+                return -1;
+            }
+        }
+        strings[length] = string;
+        length++;
+    }
 //    for (int i = 0; i < MAX_STRINGS; i++) {
 //        char temp[MAX_STRING_LENGTH];
 //        if (fscanf(file, "%s", temp) == EOF) {
@@ -33,18 +46,19 @@ int readSettingsFromFile(char *path) {
 //        count++;
 //    }
     fclose(file);
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < length; i++) {
         printf("%s\n", strings[i]);
     }
     return 0;
 }
 
+// Читаем строку из файла file в dest
 size_t fReadString(FILE *file, char **dest) {
     if (file == NULL) {
         return -1;
     }
 
-    *dest = (char *)realloc(*dest, BUFFER_SIZE);
+    *dest = (char *)malloc(BUFFER_SIZE);  // Do not forget about free()
     memset(*dest, 0, BUFFER_SIZE);
 
     size_t size = BUFFER_SIZE;
@@ -54,11 +68,12 @@ size_t fReadString(FILE *file, char **dest) {
     while ((c != '\n') && (c != EOF)) {
         if (length == size) {
             size += BUFFER_SIZE;
-            *dest = (char *)realloc(*dest, size);
-            if (*dest == NULL) {
+            char *tmp = (char *)realloc(*dest, size);
+            if (tmp == NULL) {
                 fprintf(stderr, "Error: reallocating memory for fReadString\n");
                 return -1;
             }
+            *dest = tmp;
         }
         (*dest)[length] = c;
         length++;
