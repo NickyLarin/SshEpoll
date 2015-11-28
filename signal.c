@@ -12,4 +12,5 @@ int changeSignalHandler(int signum, void (*handler)(int)) {
     memset(&act, 0, sizeof(act));
     act.sa_handler = handler;
     sigaction(signum, &act, 0);
+    return 0;
 }
