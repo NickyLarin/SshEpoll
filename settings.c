@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MAX_STRING_LENGTH 1024
-#define MAX_STRINGS 100
+#define BEGIN_STRINGS_SIZE 100
+#define BUFFER_SIZE 128
 
 int readSettingsFromFile(char *path) {
     FILE *file;
@@ -18,20 +18,51 @@ int readSettingsFromFile(char *path) {
         perror("Error: opening settings file");
         return -1;
     }
-    char *strings[MAX_STRINGS];
-    int count = 0;
-    for (int i = 0; i < MAX_STRINGS; i++) {
-        char temp[MAX_STRING_LENGTH];
-        if (fscanf(file, "%s", temp) == EOF) {
-            break;
-        }
-        strings[i] = (char *)malloc(strlen(temp) * sizeof(char));
-        strncpy(strings[i], temp, strlen(temp));
-        count++;
-    }
+
+    int length = 0;
+    int size = BEGIN_STRINGS_SIZE;
+    char **strings = (char *)malloc(size * sizeof(char *));
+
+//    for (int i = 0; i < MAX_STRINGS; i++) {
+//        char temp[MAX_STRING_LENGTH];
+//        if (fscanf(file, "%s", temp) == EOF) {
+//            break;
+//        }
+//        strings[i] = (char *)malloc(strlen(temp) * sizeof(char));
+//        strncpy(strings[i], temp, strlen(temp));
+//        count++;
+//    }
     fclose(file);
     for (int i = 0; i < count; i++) {
         printf("%s\n", strings[i]);
     }
     return 0;
+}
+
+size_t fReadString(FILE *file, char **dest) {
+    if (file == NULL) {
+        return -1;
+    }
+
+    *dest = (char *)realloc(*dest, BUFFER_SIZE);
+    memset(*dest, 0, BUFFER_SIZE);
+
+    size_t size = BUFFER_SIZE;
+    size_t length = 0;
+
+    char c = (char)getc(file);
+    while ((c != '\n') && (c != EOF)) {
+        if (length == size) {
+            size += BUFFER_SIZE;
+            *dest = (char *)realloc(*dest, size);
+            if (*dest == NULL) {
+                fprintf(stderr, "Error: reallocating memory for fReadString\n");
+                return -1;
+            }
+        }
+        (*dest)[length] = c;
+        length++;
+        c = (char)getc(file);
+    }
+    return length;
 }
