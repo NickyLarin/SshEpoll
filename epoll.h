@@ -4,5 +4,7 @@
 
 #ifndef SSHEPOLL_EPOLL_H
 #define SSHEPOLL_EPOLL_H
-
+int createEpoll();
+int addToEpoll(int fd);
+int closeEpoll();
 #endif //SSHEPOLL_EPOLL_H

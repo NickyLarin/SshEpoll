@@ -93,6 +93,22 @@ void clearStrings(char **strings, int length) {
     free(strings);
 }
 
+// Выводим настройки
+void printSettings(struct Settings *settings) {
+    printf("Settings loaded\n"
+                   "Max Threads: %d\n"
+                   "Port: %d\n"
+                   "Connection Timeout: %d\n"
+                   "Max Password Attempts: %d\n"
+                   "Timeout Check Frequency: %d\n",
+           settings->maxThreads,
+           settings->port,
+           settings->connectionTimeout,
+           settings->maxPasswordAttempts,
+           settings->timeoutCheckFrequency);
+}
+
+// Получаем настройки из файла
 struct Settings *getSettings(char *path) {
     struct Settings *settings = malloc(sizeof(struct Settings));
     memset(settings, 0, sizeof(struct Settings));
@@ -105,5 +121,6 @@ struct Settings *getSettings(char *path) {
     settings->maxPasswordAttempts = parseString("MaxPasswordAttempts:", strings, length);
     settings->timeoutCheckFrequency = parseString("TimeoutCheckFrequency:", strings, length);
     clearStrings(strings, length);
+    printSettings(settings);
     return settings;
 }

@@ -1,9 +1,14 @@
 #include <stdlib.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/epoll.h>
 
 #include "settings.h"
 #include "socket.h"
 #include "signal.h"
+#include "epoll.h"
+#include "queue.h"
+#include "threads.h"
 
 volatile sig_atomic_t done = 0;
 
@@ -22,14 +27,32 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Получаем настройки из файла, путь 1й - параметр запуска
+    // Получаем настройки из файла, путь - 1й параметр запуска
     struct Settings *settings = getSettings(argv[1]);
 
     // Создаём сокет, порт из настроек
     createSocket(settings->port);
 
+    // Создаём очередь
+    struct Queue queue;
+    initQueue(&queue, sizeof(struct epoll_event));
+
+    // Создаём потоки
+    createThreads(settings->maxThreads);
+
+    // Создаём epoll
+    createEpoll();
+
+    // Main loop
+    printf("Starting main loop\n");
+    while(!done) {
+
+    }
+
     // Освобождаем ресурсы
+    closeEpoll();
+    destroyQueue(&queue);
+    closeSocket();
     free(settings);
-    printf("SocketFd: %d\n", socketfd);
     return 0;
 }

@@ -4,5 +4,5 @@
 
 #ifndef SSHEPOLL_THREADS_H
 #define SSHEPOLL_THREADS_H
-int createThreads(int number, void *(*startFunction)(void *), void *args);
+int createThreads(int number, struct Queue *queue);
 #endif //SSHEPOLL_THREADS_H

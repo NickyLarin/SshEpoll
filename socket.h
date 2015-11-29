@@ -6,4 +6,5 @@
 #define SSHEPOLL_SOCKET_H
 int createSocket(int port);
 int getSocketFd();
+int closeSocket();
 #endif //SSHEPOLL_SOCKET_H

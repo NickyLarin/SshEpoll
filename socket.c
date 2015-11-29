@@ -63,6 +63,7 @@ int createSocket(int port) {
             perror("Error: starting to listen socket");
             continue;
         }
+        printf("Socket created\n");
         return 0;
     }
     return -1;
@@ -71,4 +72,13 @@ int createSocket(int port) {
 // Получаем дескриптор сокета
 int getSocketFd() {
     return socketfd;
+}
+
+// Закрываем сокет
+int closeSocket() {
+    if (close(socketfd) == -1) {
+        perror("Error: closing socket");
+        return -1;
+    }
+    return 0;
 }
