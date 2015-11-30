@@ -4,10 +4,10 @@
 
 #include "event.h"
 
-int handleInEvent() {
+int handleInEvent(int fd) {
     return 0;
 }
 
-int handleHupEvent() {
+int handleHupEvent(int fd) {
     return 0;
 }

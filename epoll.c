@@ -3,21 +3,33 @@
 //
 
 #include "epoll.h"
+#include "queue.h"
 
 #include <sys/epoll.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 static int epollfd;
+static struct epoll_event *events;
+static int eventsSize;
 
 // Создаём epoll
-int createEpoll() {
+int createEpoll(int maxEventsNumber) {
     epollfd = epoll_create1(0);
     if (epollfd == -1) {
         perror("Error: creating epoll");
         return -1;
     }
+    events = (struct epoll_event *)malloc(maxEventsNumber * sizeof(struct epoll_event));
+    memset(events, 0, maxEventsNumber * sizeof(struct epoll_event));
+    if (events == NULL) {
+        fprintf(stderr, "Error: allocating memory for epoll events\n");
+        return -1;
+    }
+    eventsSize = maxEventsNumber;
+    printf("Epoll created\n");
     return 0;
 }
 
@@ -31,6 +43,7 @@ int addToEpoll(int fd) {
         perror("Error: adding fd to epoll");
         return -1;
     }
+    printf("Descriptor %d added to epoll\n", fd);
     return 0;
 }
 
@@ -40,5 +53,25 @@ int closeEpoll() {
         perror("Error: closing epoll");
         return -1;
     }
+    free(events);
     return 0;
+}
+
+// Ожидаем событий epoll и отправляем их в очередь
+int waitEvents(struct Queue *queue) {
+    int eventsNumber = epoll_wait(epollfd, events, eventsSize, -1);
+    if (eventsNumber == -1) {
+        printf("%d %d\n",epollfd, eventsSize);
+        perror("Error: waiting epoll events");
+        exit(EXIT_FAILURE);
+        return -1;
+    }
+    if (!eventsNumber) {
+        printf("No new events.");
+        return 0;
+    }
+    for (int i = 0; i < eventsNumber; i++) {
+        pushQueue(queue, &events[i]);
+        signalQueue(queue);
+    }
 }

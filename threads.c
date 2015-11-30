@@ -4,13 +4,10 @@
 
 #include "threads.h"
 
-#include <pthread.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <signal.h>
+#include <stdio.h>
 #include <sys/epoll.h>
 
-#include "queue.h"
 #include "event.h"
 #include "socket.h"
 #include "connection.h"
@@ -25,13 +22,19 @@ void *worker(void *args) {
     while(!done) {
         struct epoll_event event;
         popWaitQueue(queue, &event);
+        printf("Caught event\n");
         if (event.events & EPOLLHUP) {
-            handleHupEvent();
-        } else if (event.data.fd == getSocketFd()) {
-            acceptNewConnection();
-        } else {
-            handleInEvent();
+            if (handleHupEvent(event.data.fd) == -1)
+                continue;
         }
+        int fd = event.data.fd;
+        if (fd == getSocketFd()) {
+            fd = acceptNewConnection();
+            if (fd == -1)
+                continue;
+        }
+        if (handleInEvent(fd) == -1)
+            continue;
     }
 }
 
@@ -48,5 +51,6 @@ int createThreads(int number, struct Queue *queue) {
             return -1;
         }
     }
+    printf("Threads created\n");
     return 0;
 }

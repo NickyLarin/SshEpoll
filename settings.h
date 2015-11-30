@@ -1,7 +1,6 @@
 //
 // Created by nicky on 11/27/15.
 //
-#include <stdio.h>
 #ifndef SSHEPOLL_SETTINGS_H
 #define SSHEPOLL_SETTINGS_H
 struct Settings {

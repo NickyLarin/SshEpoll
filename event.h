@@ -4,6 +4,6 @@
 
 #ifndef SSHEPOLL_EVENT_H
 #define SSHEPOLL_EVENT_H
-int handleInEvent();
-int handleHupEvent();
+int handleInEvent(int fd);
+int handleHupEvent(int fd);
 #endif //SSHEPOLL_EVENT_H

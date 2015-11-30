@@ -41,6 +41,25 @@ int initQueue(struct Queue *queue, size_t sizeOfElement) {
         fprintf(stderr, "Error: initializing queue condition variable\n");
         return -1;
     }
+    printf("Queue initialized\n");
+    return 0;
+}
+
+// Блокируем мьютекс
+int lockQueue(struct Queue *queue) {
+    if (pthread_mutex_lock(&queue->mutex) != 0) {
+        fprintf(stderr, "Error: locking queue mutex\n");
+        return -1;
+    }
+    return 0;
+}
+
+// Разблокируем мьютекс
+int unlockQueue(struct Queue *queue) {
+    if (pthread_mutex_unlock(&queue->mutex) != 0) {
+        fprintf(stderr, "Error: unlocking queue mutex\n");
+        return -1;
+    }
     return 0;
 }
 
@@ -150,24 +169,6 @@ int popWaitQueue(struct Queue *queue, void *element) {
         moveElementsInQueue(queue);
     }
     if (unlockQueue(queue) != 0) {
-        return -1;
-    }
-    return 0;
-}
-
-// Блокируем мьютекс
-int lockQueue(struct Queue *queue) {
-    if (pthread_mutex_lock(&queue->mutex) != 0) {
-        fprintf(stderr, "Error: locking queue mutex\n");
-        return -1;
-    }
-    return 0;
-}
-
-// Разблокируем мьютекс
-int unlockQueue(struct Queue *queue) {
-    if (pthread_mutex_unlock(&queue->mutex) != 0) {
-        fprintf(stderr, "Error: unlocking queue mutex\n");
         return -1;
     }
     return 0;
