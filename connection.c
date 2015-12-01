@@ -129,7 +129,7 @@ int acceptNewConnection() {
     int connectionfd = accept(getSocketFd(), &addr, &addrlen);
 
     if (connectionfd == -1) {
-        perror("acception connection error");
+        perror("Error: acception connection");
         return -1;
     }
     if (setNonBlock(connectionfd) == -1)
@@ -170,9 +170,11 @@ struct Connection *getConnection(int fd) {
 
 // Закрываем соединение
 int closeConnection(struct Connection *connection) {
-    if (close(connection->connectionfd)) {
+    if (close(connection->connectionfd) == -1) {
         perror("Error: closing connection");
-        return -1;
+    }
+    if (close(connection->ptm) == -1) {
+        perror("Error: closing ptm");
     }
     if (removeConnectionFromList(connection) == -1)
         return -1;

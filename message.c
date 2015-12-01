@@ -75,3 +75,22 @@ ssize_t readNonBlock(int fd, char **buffer, size_t beginSize) {
     *buffer = (char *)realloc(*buffer, size * sizeof(char));
     return size;
 }
+
+// Обмен сообщениями между двумя дескрипторами
+int exchangeMessages(int fd1, int fd2) {
+    char buffer[BUFFER_SIZE];
+    ssize_t readCount = 0;
+    do {
+        readCount = read(fd2, buffer, BUFFER_SIZE);
+        if (readCount == -1) {
+            perror("Error: exchange reading");
+            return -1;
+        }
+        ssize_t writeCount = write(fd1, buffer, readCount);
+        if (writeCount == -1) {
+            perror("Error: exchange writing");
+            return -1;
+        }
+    } while (readCount == BUFFER_SIZE);
+    return 0;
+}

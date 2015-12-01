@@ -24,8 +24,8 @@ void *worker(void *args) {
         popWaitQueue(queue, &event);
         if (event.events & EPOLLHUP) {
             printf("Caught hang up event\n");
-            if (handleHupEvent(event.data.fd) == -1)
-                continue;
+            handleHupEvent(event.data.fd);
+            continue;
         }
         int fd = event.data.fd;
         if (fd == getSocketFd()) {
@@ -34,8 +34,7 @@ void *worker(void *args) {
             if (fd == -1)
                 continue;
         }
-        if (handleInEvent(fd) == -1)
-            continue;
+        handleInEvent(fd);
     }
 }
 
