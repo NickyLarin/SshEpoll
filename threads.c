@@ -22,13 +22,14 @@ void *worker(void *args) {
     while(!done) {
         struct epoll_event event;
         popWaitQueue(queue, &event);
-        printf("Caught event\n");
         if (event.events & EPOLLHUP) {
+            printf("Caught hang up event\n");
             if (handleHupEvent(event.data.fd) == -1)
                 continue;
         }
         int fd = event.data.fd;
         if (fd == getSocketFd()) {
+            printf("Caught new connection event\n");
             fd = acceptNewConnection();
             if (fd == -1)
                 continue;

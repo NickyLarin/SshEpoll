@@ -4,16 +4,12 @@
 
 #ifndef SSHEPOLL_CONNECTION_H
 #define SSHEPOLL_CONNECTION_H
+#include "connection_struct.h"
 #include <time.h>
 #include "authentication.h"
-struct Connection {
-    int connectionfd;
-    int ptm;
-    struct Authentication auth;
-    struct LoginPassPair *pair;
-    time_t lastEvent;
-};
 int initConnections();
 int acceptNewConnection();
 int destroyConnections();
+struct Connection *getConnection(int fd);
+int closeConnection(struct Connection *connection);
 #endif //SSHEPOLL_CONNECTION_H

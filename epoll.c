@@ -63,7 +63,6 @@ int waitEvents(struct Queue *queue) {
     if (eventsNumber == -1) {
         printf("%d %d\n",epollfd, eventsSize);
         perror("Error: waiting epoll events");
-        exit(EXIT_FAILURE);
         return -1;
     }
     if (!eventsNumber) {
@@ -74,4 +73,5 @@ int waitEvents(struct Queue *queue) {
         pushQueue(queue, &events[i]);
         signalQueue(queue);
     }
+    return 0;
 }

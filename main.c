@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
         return -1;
 
     // Проверяем количество параметров запуска
-    if (argc < 2) {
+    if (argc < 3) {
         fprintf(stderr, "Error: too few parameters\n");
         exit(EXIT_FAILURE);
     }
@@ -46,6 +46,10 @@ int main(int argc, char *argv[]) {
     if (initConnections() == -1)
         return -1;
 
+    // Путь к файлу с логинами - 2й параметр запуска
+    if (initAuthentication(argv[2], settings->maxPasswordAttempts) == -1)
+        return -1;
+
     if (createEpoll(settings->maxThreads) == -1)
         return -1;
 
@@ -60,6 +64,7 @@ int main(int argc, char *argv[]) {
 
     // Освобождаем ресурсы
     closeEpoll();
+    destroyAuthentication();
     destroyConnections();
     destroyQueue(&queue);
     closeSocket();

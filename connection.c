@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "epoll.h"
 #include "socket.h"
@@ -15,18 +16,19 @@
 #define START_CONNECTIONS_SIZE 64
 
 static struct Connection *connections;
-static size_t connectionsSize;
-static size_t connectionsLength;
+static size_t size;
+static size_t length;
 static pthread_mutex_t mutex;
 
+// Инициализируем список соединений
 int initConnections() {
-    connectionsSize = START_CONNECTIONS_SIZE;
-    connections = (struct Connection *)malloc(connectionsSize * sizeof(struct Connection));
+    size = START_CONNECTIONS_SIZE;
+    connections = (struct Connection *)malloc(size * sizeof(struct Connection));
     if (connections == NULL) {
         fprintf(stderr, "Error: allocating memory for connections\n");
     }
-    memset(connections, 0, sizeof(connectionsSize * sizeof(struct Connection)));
-    connectionsLength = 0;
+    memset(connections, 0, sizeof(size * sizeof(struct Connection)));
+    length = 0;
     pthread_mutexattr_t mutexattr;
     if (pthread_mutexattr_init(&mutexattr) != 0) {
         fprintf(stderr, "Error: initializing connections mutex attributes\n");
@@ -47,6 +49,25 @@ int initConnections() {
     return 0;
 }
 
+// Блокируем мьютекс
+int lockConnections() {
+    if (pthread_mutex_lock(&mutex) != 0) {
+        fprintf(stderr, "Error: locking connections mutex\n");
+        return -1;
+    }
+    return 0;
+}
+
+// Разблокируем мьютекс
+int unlockConnections() {
+    if (pthread_mutex_unlock(&mutex) != 0) {
+        fprintf(stderr, "Error: unlocking connections mutex\n");
+        return -1;
+    }
+    return 0;
+}
+
+// Добавляем новое соединение в список
 int addConnectionToList(int connectionfd) {
     struct Connection connection;
     memset(&connection, 0, sizeof(connection));
@@ -57,39 +78,51 @@ int addConnectionToList(int connectionfd) {
     connection.auth = auth;
     connection.lastEvent = time(NULL);
     connection.pair = NULL;
-    if (pthread_mutex_lock(&mutex) != 0) {
-        fprintf(stderr, "Error: locking connections mutex\n");
+    if (lockConnections() == -1)
         return -1;
-    }
-    if (connectionsLength == connectionsSize) {
-        size_t oldSize = connectionsSize;
-        connectionsSize *= 2;
-        struct Connection *tmp = (struct Connection *)realloc(connections, connectionsSize * sizeof(struct Connection));
+    if (length == size) {
+        size_t oldSize = size;
+        size *= 2;
+        struct Connection *tmp = (struct Connection *)realloc(connections, size * sizeof(struct Connection));
         if (tmp == NULL) {
             fprintf(stderr, "Error: reallocating memory for connections\n");
             return -1;
         }
         connections = tmp;
-        memset(&connections[connectionsLength], 0, (connectionsSize-oldSize)*sizeof(connections[0]));
+        memset(&connections[length], 0, (size - oldSize) * sizeof(connections[0]));
         printf("Start connections test!\n");
-        for (int i = 0; i < connectionsSize; i++) {
+        for (int i = 0; i < size; i++) {
             printf("%d\n", connections[i].connectionfd);
         }
     }
-    for (int i = 0; i < connectionsSize; i++) {
+    for (int i = 0; i < size; i++) {
         if (connections[i].connectionfd == 0) {
             connections[i] = connection;
-            connectionsLength++;
+            length++;
             break;
         }
     }
-    if (pthread_mutex_unlock(&mutex) != 0) {
-        fprintf(stderr, "Error: unlocking connections mutex\n");
+    if (unlockConnections() == -1)
         return -1;
-    }
     return 0;
 }
 
+// Удаляем соединение из списка
+int removeConnectionFromList(struct Connection *connection) {
+    if (lockConnections() == -1)
+        return -1;
+    for (int i = 0; i < length; i++) {
+        if (&connections[i] == connection) {
+            memset(&connections[i], 0, sizeof(connections[i]));
+            break;
+        }
+    }
+    if (unlockConnections() == -1)
+        return -1;
+    return 0;
+}
+
+// Принимаем новое соеднинение из сокета
 int acceptNewConnection() {
     struct sockaddr addr;
     socklen_t addrlen = sizeof(addr);
@@ -109,6 +142,7 @@ int acceptNewConnection() {
     return connectionfd;
 }
 
+// Освобождаем ресурсы
 int destroyConnections() {
     free(connections);
     if (pthread_mutex_destroy(&mutex) != 0) {
@@ -116,4 +150,30 @@ int destroyConnections() {
         return -1;
     }
     return 0;
+}
+
+// Возвращаем указатель на соединение из списка
+struct Connection *getConnection(int fd) {
+    struct Connection *result = NULL;
+    if (lockConnections() == -1)
+        return NULL;
+    for (int i = 0; i < length; i++) {
+        if (connections[i].connectionfd == fd || connections[i].ptm == fd) {
+            result = &connections[i];
+            break;
+        }
+    }
+    if (unlockConnections() == -1)
+        return NULL;
+    return result;
+}
+
+// Закрываем соединение
+int closeConnection(struct Connection *connection) {
+    if (close(connection->connectionfd)) {
+        perror("Error: closing connection");
+        return -1;
+    }
+    if (removeConnectionFromList(connection) == -1)
+        return -1;
 }
