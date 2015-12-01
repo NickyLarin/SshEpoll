@@ -24,6 +24,12 @@ set(SOURCE_FILES
         authentication.c
         authentication.h
         common.c
-        common.h message.c message.h connection_struct.h authentication_struct.h pty.c pty.h)
+        common.h
+        message.c
+        message.h
+        connection_struct.h
+        authentication_struct.h
+        pty.c
+        pty.h)
 
 add_executable(SshEpoll ${SOURCE_FILES})

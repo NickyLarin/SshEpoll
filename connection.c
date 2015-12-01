@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "epoll.h"
 #include "socket.h"
@@ -15,13 +16,18 @@
 
 #define START_CONNECTIONS_SIZE 64
 
+extern volatile sig_atomic_t done;
+
 static struct Connection *connections;
 static size_t size;
 static size_t length;
 static pthread_mutex_t mutex;
+static int timeout;
+
+void *checker(void *args);
 
 // Инициализируем список соединений
-int initConnections() {
+int initConnections(int connectionTimeout, int timeoutCheckFreq) {
     size = START_CONNECTIONS_SIZE;
     connections = (struct Connection *)malloc(size * sizeof(struct Connection));
     if (connections == NULL) {
@@ -44,6 +50,13 @@ int initConnections() {
     }
     if (pthread_mutexattr_destroy(&mutexattr) != 0) {
         fprintf(stderr, "Error: destroying mutex attributes\n");
+        return -1;
+    }
+    timeout = connectionTimeout;
+    pthread_t checkerThread;
+    int freq = timeoutCheckFreq;
+    if (pthread_create(&checkerThread, NULL, checker, (void *)freq) != 0) {
+        fprintf(stderr, "Error: creating timeout checker thread\n");
         return -1;
     }
     return 0;
@@ -114,6 +127,7 @@ int removeConnectionFromList(struct Connection *connection) {
     for (int i = 0; i < length; i++) {
         if (&connections[i] == connection) {
             memset(&connections[i], 0, sizeof(connections[i]));
+            length--;
             break;
         }
     }
@@ -179,4 +193,37 @@ int closeConnection(struct Connection *connection) {
     if (removeConnectionFromList(connection) == -1)
         return -1;
     return 0;
+}
+
+// Проверяем не наступил ли таймаут соединения
+// Обновляем если не наступил
+// Возвращаем 0, если таймаут не наступил и был обновлен
+// Возвращаем 1, если таймаут наступил
+int checkConnectionTimeout(struct Connection *connection) {
+    if (difftime(time(NULL), connection->lastEvent) > timeout) {
+        fprintf(stderr, "Connection %d closed on timeout\n", connection->connectionfd);
+        if (closeConnection(connection) == -1) {
+            fprintf(stderr, "Error: closing connection on timeout\n");
+            return -1;
+        }
+        return 1;
+    } else {
+        connection->lastEvent = time(NULL);
+        return 0;
+    }
+}
+
+// Функция потока проверки таймаута
+void *checker(void *args) {
+    int freq = (int)args;
+    while (!done) {
+        sleep(freq);
+        if (lockConnections() == -1)
+            return NULL;
+        for (int i = 0; i < length; i++) {
+            checkConnectionTimeout(&connections[i]);
+        }
+        if (unlockConnections() == -1)
+            return NULL;
+    }
 }

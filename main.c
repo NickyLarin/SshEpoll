@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     if (createThreads(settings->maxThreads, &queue) == -1)
         return -1;
 
-    if (initConnections() == -1)
+    if (initConnections(settings->connectionTimeout, settings->timeoutCheckFrequency) == -1)
         return -1;
 
     // Путь к файлу с логинами - 2й параметр запуска

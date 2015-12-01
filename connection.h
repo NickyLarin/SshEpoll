@@ -7,7 +7,7 @@
 #include "connection_struct.h"
 #include <time.h>
 #include "authentication.h"
-int initConnections();
+int initConnections(int connectionTimeout, int timeoutCheckFreq);
 int acceptNewConnection();
 int destroyConnections();
 struct Connection *getConnection(int fd);
