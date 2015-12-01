@@ -176,4 +176,5 @@ int closeConnection(struct Connection *connection) {
     }
     if (removeConnectionFromList(connection) == -1)
         return -1;
+    return 0;
 }

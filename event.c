@@ -12,11 +12,20 @@ int handleInEvent(int fd) {
         return -1;
     }
     if (checkAuthentication(connection) == 1) {
-        authenticate(connection);
+        printf("Authenticating fd: %d\n", connection->connectionfd);
+        int status = authenticate(connection);
+        if (status == -1)
+            closeConnection(connection);
+        if (status == 0)
+            return 0;
     }
     return 0;
 }
 
 int handleHupEvent(int fd) {
+    printf("Here!!");
+    struct Connection *connection = getConnection(fd);
+    if (closeConnection(connection) == -1)
+        return -1;
     return 0;
 }

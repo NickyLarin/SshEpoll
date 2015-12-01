@@ -147,22 +147,29 @@ int checkPassword(struct Connection *connection) {
 int authenticate(struct Connection *connection) {
     switch (connection->auth.status) {
         case LOGIN_REQUEST:
-            requestLogin(connection);
+            if (requestLogin(connection) == -1)
+                return -1;
             break;
         case LOGIN_CHECK:
-            checkLogin(connection);
+            if (checkLogin(connection) == -1)
+                return -1;
             break;
         case PASSWORD_REQUEST:
-            requestPassword(connection);
+            if (requestPassword(connection) == -1)
+                return -1;
             break;
         case PASSWORD_CHECK:
-            checkPassword(connection);
+            if (checkPassword(connection) == -1)
+                return -1;
+            if (checkAuthentication(connection) == 0) {
+                return 0;
+            }
             break;
         default:
             fprintf(stderr, "Error: wrong authentication status of connectionfd\n");
             return -1;
     }
-    return 0;
+    return 1;
 }
 
 // Освобождаем ресурсы

@@ -64,7 +64,8 @@ ssize_t readNonBlock(int fd, char **buffer, size_t beginSize) {
             break;
         }
         case 0: {
-            printf("Connection have been closed");
+            fprintf(stderr, "Connection has been closed\n");
+            return -1;
         }
         default:
             break;
