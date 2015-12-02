@@ -117,13 +117,12 @@ int checkPassword(struct Connection *connection) {
         return -1;
     }
     if (verifyPassword(connection->pair, password) == -1) {
-        if (connection->auth.attempts == maxPasswordAttempts) {
+        if (connection->auth.attempts == maxPasswordAttempts-1) {
             fprintf(stderr, "Many password enter attempts for user: %s\n", connection->pair->login);
             if (sendMessage(connection->connectionfd, "Too many password enter attempts\n") == -1) {
                 fprintf(stderr, "Error: sending wrong too many attempts msg\n");
                 return -1;
             }
-            closeConnection(connection);
             return -1;
         }
         if (sendMessage(connection->connectionfd, "Wrong password, try again\n\n") == -1) {

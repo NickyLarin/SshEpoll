@@ -14,14 +14,18 @@ int handleInEvent(int fd) {
         fprintf(stderr, "Error: can't find connection in list\n");
         return -1;
     }
+    if (updateLastEvent(connection) == -1)
+        return -1;
     int status = checkAuthentication(connection);
     if (status == -1)
         return -1;
     if (status == 1) {
         printf("Authenticating fd: %d\n", connection->connectionfd);
         int authStatus = authenticate(connection);
-        if (authStatus == -1)
+        if (authStatus == -1) {
             closeConnection(connection);
+            return 0;
+        }
         if (authStatus == 1)
             return 0;
     }
@@ -44,6 +48,5 @@ int handleHupEvent(int fd) {
     struct Connection *connection = getConnection(fd);
     if (closeConnection(connection) == -1)
         return -1;
-    printf("Connection closed\n");
     return 0;
 }

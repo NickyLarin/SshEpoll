@@ -13,6 +13,8 @@
 #include "epoll.h"
 #include "socket.h"
 #include "common.h"
+#include "message.h"
+#include "signal.h"
 
 #define START_CONNECTIONS_SIZE 64
 
@@ -21,13 +23,22 @@ extern volatile sig_atomic_t done;
 static struct Connection *connections;
 static size_t size;
 static size_t length;
+static pthread_t checkerThread;
 static pthread_mutex_t mutex;
 static int timeout;
+static int freq;
 
 void *checker(void *args);
 
+void emptyHandler(int signum) {
+    printf("Checker woke up\n");
+};
+
 // Инициализируем список соединений
 int initConnections(int connectionTimeout, int timeoutCheckFreq) {
+    // Меняем обработчик SIGALRM чтобы разблокировать поток checker
+    if (changeSignalHandler(SIGALRM, emptyHandler))
+        return -1;
     size = START_CONNECTIONS_SIZE;
     connections = (struct Connection *)malloc(size * sizeof(struct Connection));
     if (connections == NULL) {
@@ -40,7 +51,7 @@ int initConnections(int connectionTimeout, int timeoutCheckFreq) {
         fprintf(stderr, "Error: initializing connections mutex attributes\n");
         return -1;
     }
-    if (pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_ERRORCHECK) != 0) {
+    if (pthread_mutexattr_settype(&mutexattr, PTHREAD_MUTEX_RECURSIVE) != 0) {
         fprintf(stderr, "Error: setting connections mutex type\n");
         return -1;
     }
@@ -53,12 +64,13 @@ int initConnections(int connectionTimeout, int timeoutCheckFreq) {
         return -1;
     }
     timeout = connectionTimeout;
-    pthread_t checkerThread;
-    int freq = timeoutCheckFreq;
-    if (pthread_create(&checkerThread, NULL, checker, (void *)freq) != 0) {
+    printf("Connections initialized\n");
+    freq = timeoutCheckFreq;
+    if (pthread_create(&checkerThread, NULL, checker, NULL) != 0) {
         fprintf(stderr, "Error: creating timeout checker thread\n");
         return -1;
     }
+    printf("Timeout cheker started\n");
     return 0;
 }
 
@@ -126,7 +138,9 @@ int removeConnectionFromList(struct Connection *connection) {
         return -1;
     for (int i = 0; i < length; i++) {
         if (&connections[i] == connection) {
-            memset(&connections[i], 0, sizeof(connections[i]));
+            struct Connection empty;
+            memset(&empty, 0, sizeof(struct Connection));
+            connections[i] = empty;
             length--;
             break;
         }
@@ -156,16 +170,6 @@ int acceptNewConnection() {
     return connectionfd;
 }
 
-// Освобождаем ресурсы
-int destroyConnections() {
-    free(connections);
-    if (pthread_mutex_destroy(&mutex) != 0) {
-        fprintf(stderr, "Error: destroying connections mutex\n");
-        return -1;
-    }
-    return 0;
-}
-
 // Возвращаем указатель на соединение из списка
 struct Connection *getConnection(int fd) {
     struct Connection *result = NULL;
@@ -184,46 +188,74 @@ struct Connection *getConnection(int fd) {
 
 // Закрываем соединение
 int closeConnection(struct Connection *connection) {
-    if (close(connection->connectionfd) == -1) {
+    if (sendMessage(connection->connectionfd, "Connection closed\n") == -1)
+        return -1;
+    if (close(connection->connectionfd) == -1)
         perror("Error: closing connection");
-    }
-    if (close(connection->ptm) == -1) {
+    if (connection->ptm != -1 && close(connection->ptm))
         perror("Error: closing ptm");
-    }
     if (removeConnectionFromList(connection) == -1)
         return -1;
+    printf("Connection closed\n");
+    return 0;
+}
+
+// Обновляем время последнего события
+int updateLastEvent(struct Connection *connection) {
+    if (connection == NULL) {
+        fprintf(stderr, "Error: updating last event\n");
+        return -1;
+    }
+    connection->lastEvent = time(NULL);
     return 0;
 }
 
 // Проверяем не наступил ли таймаут соединения
-// Обновляем если не наступил
-// Возвращаем 0, если таймаут не наступил и был обновлен
+// Возвращаем 0, если таймаут не наступил
 // Возвращаем 1, если таймаут наступил
 int checkConnectionTimeout(struct Connection *connection) {
     if (difftime(time(NULL), connection->lastEvent) > timeout) {
-        fprintf(stderr, "Connection %d closed on timeout\n", connection->connectionfd);
-        if (closeConnection(connection) == -1) {
-            fprintf(stderr, "Error: closing connection on timeout\n");
-            return -1;
-        }
         return 1;
-    } else {
-        connection->lastEvent = time(NULL);
-        return 0;
     }
+    return 0;
 }
 
 // Функция потока проверки таймаута
 void *checker(void *args) {
-    int freq = (int)args;
     while (!done) {
         sleep(freq);
-        if (lockConnections() == -1)
-            return NULL;
-        for (int i = 0; i < length; i++) {
-            checkConnectionTimeout(&connections[i]);
+        if (lockConnections() == -1) {
+            fprintf(stderr, "Error: locking connections mutex from timeout checker\n");
+            exit(EXIT_FAILURE);
         }
-        if (unlockConnections() == -1)
-            return NULL;
+        for (int i = 0; i < length; i++) {
+            if (checkConnectionTimeout(&connections[i]) == 1) {
+                sendMessage(connections[i].connectionfd, "Connection timeout\n");
+                closeConnection(&connections[i]);
+            }
+        }
+        if (unlockConnections() == -1) {
+            fprintf(stderr, "Error: unlocking connections mutex from timeout checker\n");
+            exit(EXIT_FAILURE);
+        }
     }
+    pthread_exit(NULL);
+}
+
+// Освобождаем ресурсы
+int destroyConnections() {
+    if (pthread_kill(checkerThread, SIGALRM) != 0) {
+        fprintf(stderr, "Error: sending SIGUSR1 signal to timeout checker thread\n");
+        return -1;
+    }
+    if (pthread_join(checkerThread, NULL) != 0) {
+        fprintf(stderr, "Error: timeout checker thread join\n");
+        return -1;
+    }
+    if (pthread_mutex_destroy(&mutex) != 0) {
+        fprintf(stderr, "Error: destroying connections mutex\n");
+        return -1;
+    }
+    free(connections);
+    return 0;
 }

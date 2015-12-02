@@ -7,21 +7,29 @@
 #include <signal.h>
 #include <stdio.h>
 #include <sys/epoll.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
 
 #include "event.h"
 #include "socket.h"
 #include "connection.h"
+#include "signal.h"
 
 extern volatile sig_atomic_t done;
 
 static pthread_t *threads;
+static size_t length;
 
 // Функция, с которой начинают работу потоки
 void *worker(void *args) {
     struct Queue *queue = args;
     while(!done) {
         struct epoll_event event;
-        popWaitQueue(queue, &event);
+        memset(&event, 0, sizeof(event));
+        if (popWaitQueue(queue, &event) == 1) {
+            break;
+        }
         if (event.events & EPOLLHUP) {
             printf("Caught hang up event\n");
             handleHupEvent(event.data.fd);
@@ -36,11 +44,13 @@ void *worker(void *args) {
         }
         handleInEvent(fd);
     }
+    pthread_exit(NULL);
 }
 
 // Создаём потоки
-int createThreads(int number, struct Queue *queue) {
+int createThreads(size_t number, struct Queue *queue) {
     threads = (pthread_t *)malloc(number * sizeof(pthread_t));
+    length = number;
     if (threads == NULL) {
         fprintf(stderr, "Error: allocating memory for threads\n");
         return -1;
@@ -53,4 +63,15 @@ int createThreads(int number, struct Queue *queue) {
     }
     printf("Threads created\n");
     return 0;
+}
+
+// Уничтожаем потоки
+int destroyThreads() {
+    for (int i = 0; i < length; i++) {
+        if (pthread_join(threads[i], NULL) != 0) {
+            fprintf(stderr, "Error: thread join\n");
+            return -1;
+        }
+    }
+    free(threads);
 }

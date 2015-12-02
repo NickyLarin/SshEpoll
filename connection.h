@@ -12,4 +12,6 @@ int acceptNewConnection();
 int destroyConnections();
 struct Connection *getConnection(int fd);
 int closeConnection(struct Connection *connection);
+int updateLastEvent(struct Connection *connection);
+int checkConnectionTimeout(struct Connection *connection);
 #endif //SSHEPOLL_CONNECTION_H

@@ -66,8 +66,10 @@ int main(int argc, char *argv[]) {
     closeEpoll();
     destroyAuthentication();
     destroyConnections();
+    destroyThreads();
     destroyQueue(&queue);
     closeSocket();
     free(settings);
+    printf("Done\n");
     return 0;
 }

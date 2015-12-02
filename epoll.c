@@ -8,8 +8,8 @@
 #include <sys/epoll.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <unistd.h>
-#include <stdlib.h>
 
 static int epollfd;
 static struct epoll_event *events;
@@ -60,8 +60,9 @@ int closeEpoll() {
 // Ожидаем событий epoll и отправляем их в очередь
 int waitEvents(struct Queue *queue) {
     int eventsNumber = epoll_wait(epollfd, events, eventsSize, -1);
-    if (eventsNumber == -1) {
-        printf("%d %d\n",epollfd, eventsSize);
+    if (eventsNumber == -1 && errno == EINTR) {
+        return -1;
+    } else if (eventsNumber == -1) {
         perror("Error: waiting epoll events");
         return -1;
     }

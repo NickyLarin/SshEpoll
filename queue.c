@@ -2,10 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
+#include <errno.h>
+#include <signal.h>
 
 #include "queue.h"
 
 #define BEGIN_QUEUE_SIZE 128
+
+extern volatile sig_atomic_t done;
 
 // Инициализируем очередь
 int initQueue(struct Queue *queue, size_t sizeOfElement) {
@@ -144,8 +148,18 @@ int popWaitQueue(struct Queue *queue, void *element) {
     if (lockQueue(queue) != 0) {
         return -1;
     }
-    while (queue->head == queue->last) {
-        if (pthread_cond_wait(&queue->condition, &queue->mutex) != 0) {
+    while (queue->head == queue->last && !done) {
+        struct timespec timeout;
+        clock_gettime(CLOCK_REALTIME, &timeout);
+        timeout.tv_sec += 1;
+        int status = pthread_cond_timedwait(&queue->condition, &queue->mutex, &timeout);
+        if (status == ETIMEDOUT && done) {
+            if (unlockQueue(queue) != 0) {
+                return -1;
+            }
+            return 1;
+        }
+        if (status != 0 && status != ETIMEDOUT) {
             fprintf(stderr, "Error: waiting queue condition variable\n");
             return -1;
         }
